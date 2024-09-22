@@ -1,4 +1,4 @@
-# Copyright by HQ-SAM team
+# Copyright by wsi-SAM team
 # All rights reserved.
 
 # This source code is licensed under the license found in the
@@ -65,7 +65,7 @@ class MLP(nn.Module):
             x = F.sigmoid(x)
         return x
 
-class MaskDecoderHQ(MaskDecoder):
+class MaskDecoderwsi(MaskDecoder):
     def __init__(self):
         super().__init__(transformer_dim=256,
                         transformer=TwoWayTransformer(
@@ -80,13 +80,13 @@ class MaskDecoderHQ(MaskDecoder):
                         iou_head_hidden_dim= 256,)
         # assert model_type in ["vit_b","vit_l","vit_h","vit_t"]
         
-        checkpoint_dict = {"vit_b":"/home/bme001/20225531/sam-hq/pretrained_checkpoint/sam_vit_b_maskdecoder.pth",
+        checkpoint_dict = {"vit_b":"/home/bme001/20225531/sam-wsi/pretrained_checkpoint/sam_vit_b_maskdecoder.pth",
                            "vit_l":"pretrained_checkpoint/sam_vit_l_maskdecoder.pth",
                            'vit_h':"pretrained_checkpoint/sam_vit_h_maskdecoder.pth",
-                           "vit_t":"/home/bme001/20225531/sam-hq/pretrained_checkpoint/vit_tiny_maskdecoder.pt"}
+                           "vit_t":"/home/bme001/20225531/sam-wsi/pretrained_checkpoint/vit_tiny_maskdecoder.pt"}
         checkpoint_path = checkpoint_dict["vit_t"]
         self.load_state_dict(torch.load(checkpoint_path))
-        print("HQ Decoder init from SAM MaskDecoder")
+        print("wsi Decoder init from SAM MaskDecoder")
         for n,p in self.named_parameters():
             p.requires_grad = False
 
@@ -125,7 +125,7 @@ class MaskDecoderHQ(MaskDecoder):
         sparse_prompt_embeddings: torch.Tensor,
         dense_prompt_embeddings: torch.Tensor,
         multimask_output: bool,
-        hq_token_only: bool,
+        wsi_token_only: bool,
         interm_embeddings: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -140,11 +140,11 @@ class MaskDecoderHQ(MaskDecoder):
             mask.
 
         Returns:
-          torch.Tensor: batched predicted hq masks
+          torch.Tensor: batched predicted wsi masks
         """
         
         vit_features = interm_embeddings[0].permute(0, 3, 1, 2) # early-layer ViT feature, after 1st global attention block in ViT
-        hq_features = self.embedding_encoder(image_embeddings) + self.compress_vit_feat(vit_features) + self.embedding_encoder(patch_embedding)
+        wsi_features = self.embedding_encoder(image_embeddings) + self.compress_vit_feat(vit_features) + self.embedding_encoder(patch_embedding)
 
         batch_len = len(image_embeddings)
         masks = []
@@ -155,7 +155,7 @@ class MaskDecoderHQ(MaskDecoder):
                 image_pe=image_pe[i_batch],
                 sparse_prompt_embeddings=sparse_prompt_embeddings[i_batch],
                 dense_prompt_embeddings=dense_prompt_embeddings[i_batch],
-                hq_feature = hq_features[i_batch].unsqueeze(0),
+                wsi_feature = wsi_features[i_batch].unsqueeze(0),
             )
             masks.append(mask)
             iou_preds.append(iou_pred)
@@ -176,10 +176,10 @@ class MaskDecoderHQ(MaskDecoder):
             mask_slice = slice(0, 1)
             masks_sam = masks[:,mask_slice]
 
-        masks_hq = masks[:,slice(self.num_mask_tokens-1, self.num_mask_tokens), :, :]
+        masks_wsi = masks[:,slice(self.num_mask_tokens-1, self.num_mask_tokens), :, :]
 
-        masks_hq = F.interpolate(
-                    masks_hq,
+        masks_wsi = F.interpolate(
+                    masks_wsi,
                     (1024,1024),
                     mode="bilinear",
                     align_corners=False,
@@ -192,10 +192,10 @@ class MaskDecoderHQ(MaskDecoder):
                     align_corners=False,
                 )  
         #############################
-        if hq_token_only:
-            return masks_hq
+        if wsi_token_only:
+            return masks_wsi
         else:
-            return masks_sam, masks_hq
+            return masks_sam, masks_wsi
 
     def predict_masks(
         self,
@@ -203,7 +203,7 @@ class MaskDecoderHQ(MaskDecoder):
         image_pe: torch.Tensor,
         sparse_prompt_embeddings: torch.Tensor,
         dense_prompt_embeddings: torch.Tensor,
-        hq_feature: torch.Tensor,
+        wsi_feature: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Predicts masks. See 'forward' for more details."""
 
@@ -226,7 +226,7 @@ class MaskDecoderHQ(MaskDecoder):
         src = src.transpose(1, 2).view(b, c, h, w)
 
         upscaled_embedding_sam = self.output_upscaling(src)
-        upscaled_embedding_ours = self.embedding_maskfeature(upscaled_embedding_sam) + hq_feature
+        upscaled_embedding_ours = self.embedding_maskfeature(upscaled_embedding_sam) + wsi_feature
         
         hyper_in_list: List[torch.Tensor] = []
         for i in range(self.num_mask_tokens):

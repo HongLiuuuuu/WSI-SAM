@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 from segment_anything_training import sam_model_registry
-from network import MaskDecoderHQ, MaskDecoderHQ1
+from network import MaskDecoderHigh, MaskDecoderLow
 import torch.nn.functional as F
 import os
 from typing import Tuple
@@ -87,17 +87,17 @@ def run_inference(high_res_image: torch.Tensor, low_res_image: torch.Tensor, box
 
     # Load model
     sam_model = sam_model_registry[args.model_type](checkpoint=args.checkpoint_SAM).to(args.device).eval()
-    net = MaskDecoderHQ(args.model_type).to(args.device).eval()
-    net1 = MaskDecoderHQ1(args.model_type).to(args.device).eval()
+    net_high = MaskDecoderHigh(args.model_type).to(args.device).eval()
+    net_low = MaskDecoderLow(args.model_type).to(args.device).eval()
     
     # Load checkpoints
     net_ckpt = args.checkpoint_net
     checkpoint = torch.load(net_ckpt, map_location='cpu')['model']
-    net.load_state_dict(checkpoint, strict=False)
+    net_high.load_state_dict(checkpoint, strict=False)
     
     net1_ckpt = args.checkpoint_net1
     checkpoint1 = torch.load(net1_ckpt, map_location='cpu')['model']
-    net1.load_state_dict(checkpoint1, strict=False)
+    net_low.load_state_dict(checkpoint1, strict=False)
     
     # Convert bounding box to tensor
     box_tensor = torch.tensor(box, device=args.device).unsqueeze(0).to(args.device)
@@ -132,39 +132,39 @@ def run_inference(high_res_image: torch.Tensor, low_res_image: torch.Tensor, box
         sparse_embeddings_low = [batched_output_low[i_l]['sparse_embeddings'] for i_l in range(batch_len_low)]
         dense_embeddings_low = [batched_output_low[i_l]['dense_embeddings'] for i_l in range(batch_len_low)]
 
-        masks_sam_high, _, masks_hq_token_high, hq_image_embeddings_high = net(
+        masks_sam_high, _, masks_wsi_token_high, wsi_image_embeddings_high = net_high(
             image_embeddings=encoder_embedding_high,
             image_pe=image_pe_high,
             sparse_prompt_embeddings=sparse_embeddings_high,
             dense_prompt_embeddings=dense_embeddings_high,
             multimask_output=False,
-            hq_token_only=False,
+            wsi_token_only=False,
             interm_embeddings=interm_embeddings_high,
         )
-        _, _, masks_hq_token_low, _ = net1(
+        _, _, masks_wsi_token_low, _ = net_low(
             image_embeddings=encoder_embedding_low,
             image_pe=image_pe_low,
             sparse_prompt_embeddings=sparse_embeddings_low,
             dense_prompt_embeddings=dense_embeddings_low,
             multimask_output=False,
-            hq_token_only=False,
+            wsi_token_only=False,
             interm_embeddings=interm_embeddings_low,
         )
 
-        masks_hq_token = masks_hq_token_high + masks_hq_token_low  
-        masks_hq_high = (masks_hq_token @ hq_image_embeddings_high).view(1, -1, 256, 256)
-        # masks_hq_low = (masks_hq_token @ hq_image_embeddings_low).view(1, -1, 256, 256)
+        masks_wsi_token = masks_wsi_token_high + masks_wsi_token_low  
+        masks_wsi_high = (masks_wsi_token @ wsi_image_embeddings_high).view(1, -1, 256, 256)
+        # masks_wsi_low = (masks_wsi_token @ wsi_image_embeddings_low).view(1, -1, 256, 256)
 
-        masks_hq_high = masks_hq_high + masks_sam_high
-        masks_hq_high = postprocess_masks(
-                masks_hq_high,
+        masks_wsi_high = masks_wsi_high + masks_sam_high
+        masks_wsi_high = postprocess_masks(
+                masks_wsi_high,
                 input_size=high_res_image.shape[-2:],
                 original_size=(1024,1024),
             )
 
 
     # Return final mask prediction
-    return masks_hq_high
+    return masks_wsi_high
 
 def main():
     # Parse arguments from the command line

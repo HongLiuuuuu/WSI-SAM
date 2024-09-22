@@ -43,7 +43,10 @@ class MLP(nn.Module):
             x = F.sigmoid(x)
         return x
 
-class MaskDecoderHQ(MaskDecoder):
+
+# Dual Mask-Decoder
+
+class MaskDecoderHigh(MaskDecoder):
     def __init__(self, model_type):
         super().__init__(transformer_dim=256,
                         transformer=TwoWayTransformer(
@@ -101,7 +104,7 @@ class MaskDecoderHQ(MaskDecoder):
         sparse_prompt_embeddings: torch.Tensor,
         dense_prompt_embeddings: torch.Tensor,
         multimask_output: bool,
-        hq_token_only: bool,
+        wsi_token_only: bool,
         interm_embeddings: torch.Tensor,
         # patch_embeddings:torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -117,33 +120,33 @@ class MaskDecoderHQ(MaskDecoder):
             mask.
 
         Returns:
-          torch.Tensor: batched predicted hq masks
+          torch.Tensor: batched predicted wsi masks
         """
         
         vit_features = interm_embeddings[0].permute(0, 3, 1, 2) # early-layer ViT feature, after 1st global attention block in ViT
-        hq_features = self.embedding_encoder(image_embeddings) + self.compress_vit_feat(vit_features) #+ self.embedding_encoder(patch_embeddings)
+        wsi_features = self.embedding_encoder(image_embeddings) + self.compress_vit_feat(vit_features) #+ self.embedding_encoder(patch_embeddings)
 
         batch_len = len(image_embeddings)
         masks = []
         iou_preds = []
-        masks_hq_token = []
-        hq_image_embeddings = []
+        masks_wsi_token = []
+        wsi_image_embeddings = []
         for i_batch in range(batch_len):
-            mask, iou_pred, mask_hq_token, hq_image_embedding = self.predict_masks(
+            mask, iou_pred, mask_wsi_token, wsi_image_embedding = self.predict_masks(
                 image_embeddings=image_embeddings[i_batch].unsqueeze(0),
                 image_pe=image_pe[i_batch],
                 sparse_prompt_embeddings=sparse_prompt_embeddings[i_batch],
                 dense_prompt_embeddings=dense_prompt_embeddings[i_batch],
-                hq_feature = hq_features[i_batch].unsqueeze(0)
+                wsi_feature = wsi_features[i_batch].unsqueeze(0)
             )
             masks.append(mask)
             iou_preds.append(iou_pred)
-            masks_hq_token.append(mask_hq_token)
-            hq_image_embeddings.append(hq_image_embedding)
+            masks_wsi_token.append(mask_wsi_token)
+            wsi_image_embeddings.append(wsi_image_embedding)
         masks = torch.cat(masks,0)
         iou_preds = torch.cat(iou_preds,0)
-        masks_hq_token = torch.cat(masks_hq_token, 0)
-        hq_image_embeddings = torch.cat(hq_image_embeddings, 0)
+        masks_wsi_token = torch.cat(masks_wsi_token, 0)
+        wsi_image_embeddings = torch.cat(wsi_image_embeddings, 0)
 
         # Select the correct mask or masks for output
         if multimask_output:
@@ -159,19 +162,19 @@ class MaskDecoderHQ(MaskDecoder):
             mask_slice = slice(0, 1)
             masks_sam = masks[:,mask_slice]
 
-        masks_hq = masks[:,slice(self.num_mask_tokens-1, self.num_mask_tokens), :, :]
+        masks_wsi = masks[:,slice(self.num_mask_tokens-1, self.num_mask_tokens), :, :]
 
-        masks_hq = F.interpolate(
-            masks_hq,
+        masks_wsi = F.interpolate(
+            masks_wsi,
             (1024,1024),
             mode="bilinear",
             align_corners=False,
         )
         
-        if hq_token_only:
-            return masks_hq
+        if wsi_token_only:
+            return masks_wsi
         else:
-            return masks_sam, masks_hq, masks_hq_token, hq_image_embeddings
+            return masks_sam, masks_wsi, masks_wsi_token, wsi_image_embeddings
 
     def predict_masks(
         self,
@@ -179,7 +182,7 @@ class MaskDecoderHQ(MaskDecoder):
         image_pe: torch.Tensor,
         sparse_prompt_embeddings: torch.Tensor,
         dense_prompt_embeddings: torch.Tensor,
-        hq_feature: torch.Tensor,
+        wsi_feature: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Predicts masks. See 'forward' for more details."""
 
@@ -202,7 +205,7 @@ class MaskDecoderHQ(MaskDecoder):
         src = src.transpose(1, 2).view(b, c, h, w)
 
         upscaled_embedding_sam = self.output_upscaling(src)
-        upscaled_embedding_ours = self.embedding_maskfeature(upscaled_embedding_sam) + hq_feature
+        upscaled_embedding_ours = self.embedding_maskfeature(upscaled_embedding_sam) + wsi_feature
         
         hyper_in_list: List[torch.Tensor] = []
         for i in range(self.num_mask_tokens):
@@ -214,18 +217,18 @@ class MaskDecoderHQ(MaskDecoder):
         hyper_in = torch.stack(hyper_in_list, dim=1)
         b, c, h, w = upscaled_embedding_sam.shape
 
-        mask_hq_token = hyper_in[:,4:]
-        hq_image_embedding = upscaled_embedding_ours.view(b, c, h * w)
+        mask_wsi_token = hyper_in[:,4:]
+        wsi_image_embedding = upscaled_embedding_ours.view(b, c, h * w)
         masks_sam = (hyper_in[:,:4] @ upscaled_embedding_sam.view(b, c, h * w)).view(b, -1, h, w)
         masks_ours = (hyper_in[:,4:] @ upscaled_embedding_ours.view(b, c, h * w)).view(b, -1, h, w)
         masks = torch.cat([masks_sam,masks_ours],dim=1)
         
         iou_pred = self.iou_prediction_head(iou_token_out)
 
-        return masks, iou_pred, mask_hq_token, hq_image_embedding
+        return masks, iou_pred, mask_wsi_token, wsi_image_embedding
     
 
-class MaskDecoderHQ1(MaskDecoder):
+class MaskDecoderLow(MaskDecoder):
     def __init__(self, model_type):
         super().__init__(transformer_dim=256,
                         transformer=TwoWayTransformer(
@@ -243,7 +246,7 @@ class MaskDecoderHQ1(MaskDecoder):
         checkpoint_dict = {"vit_b":"pretrained_checkpoint/sam_vit_b_maskdecoder.pth",
                            "vit_l":"pretrained_checkpoint/sam_vit_l_maskdecoder.pth",
                            'vit_h':"pretrained_checkpoint/sam_vit_h_maskdecoder.pth",
-                           'vit_tiny': "pretrained_checkpoint/vit_tiny_maskdecoder.pt"}  #/home/bme001/20225531/sam-hq/pretrained_checkpoint/vit_tiny_maskdecoder.pt
+                           'vit_tiny': "pretrained_checkpoint/vit_tiny_maskdecoder.pt"}  #/home/bme001/20225531/sam-wsi/pretrained_checkpoint/vit_tiny_maskdecoder.pt
         checkpoint_path = checkpoint_dict[model_type]
         self.load_state_dict(torch.load(checkpoint_path))
         for n,p in self.named_parameters():
@@ -283,7 +286,7 @@ class MaskDecoderHQ1(MaskDecoder):
         sparse_prompt_embeddings: torch.Tensor,
         dense_prompt_embeddings: torch.Tensor,
         multimask_output: bool,
-        hq_token_only: bool,
+        wsi_token_only: bool,
         interm_embeddings: torch.Tensor,
         # patch_embeddings:torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -299,33 +302,33 @@ class MaskDecoderHQ1(MaskDecoder):
             mask.
 
         Returns:
-          torch.Tensor: batched predicted hq masks
+          torch.Tensor: batched predicted wsi masks
         """
         
         vit_features = interm_embeddings[0].permute(0, 3, 1, 2) # early-layer ViT feature, after 1st global attention block in ViT
-        hq_features = self.embedding_encoder(image_embeddings) + self.compress_vit_feat(vit_features) #+ self.embedding_encoder(patch_embeddings)
+        wsi_features = self.embedding_encoder(image_embeddings) + self.compress_vit_feat(vit_features) #+ self.embedding_encoder(patch_embeddings)
 
         batch_len = len(image_embeddings)
         masks = []
         iou_preds = []
-        masks_hq_token = []
-        hq_image_embeddings = []
+        masks_wsi_token = []
+        wsi_image_embeddings = []
         for i_batch in range(batch_len):
-            mask, iou_pred, mask_hq_token, hq_image_embedding = self.predict_masks(
+            mask, iou_pred, mask_wsi_token, wsi_image_embedding = self.predict_masks(
                 image_embeddings=image_embeddings[i_batch].unsqueeze(0),
                 image_pe=image_pe[i_batch],
                 sparse_prompt_embeddings=sparse_prompt_embeddings[i_batch],
                 dense_prompt_embeddings=dense_prompt_embeddings[i_batch],
-                hq_feature = hq_features[i_batch].unsqueeze(0)
+                wsi_feature = wsi_features[i_batch].unsqueeze(0)
             )
             masks.append(mask)
             iou_preds.append(iou_pred)
-            masks_hq_token.append(mask_hq_token)
-            hq_image_embeddings.append(hq_image_embedding)
+            masks_wsi_token.append(mask_wsi_token)
+            wsi_image_embeddings.append(wsi_image_embedding)
         masks = torch.cat(masks,0)
         iou_preds = torch.cat(iou_preds,0)
-        masks_hq_token = torch.cat(masks_hq_token, 0)
-        hq_image_embeddings = torch.cat(hq_image_embeddings, 0)
+        masks_wsi_token = torch.cat(masks_wsi_token, 0)
+        wsi_image_embeddings = torch.cat(wsi_image_embeddings, 0)
 
         # Select the correct mask or masks for output
         if multimask_output:
@@ -341,19 +344,19 @@ class MaskDecoderHQ1(MaskDecoder):
             mask_slice = slice(0, 1)
             masks_sam = masks[:,mask_slice]
 
-        masks_hq = masks[:,slice(self.num_mask_tokens-1, self.num_mask_tokens), :, :]
+        masks_wsi = masks[:,slice(self.num_mask_tokens-1, self.num_mask_tokens), :, :]
 
-        masks_hq = F.interpolate(
-            masks_hq,
+        masks_wsi = F.interpolate(
+            masks_wsi,
             (1024,1024),
             mode="bilinear",
             align_corners=False,
         )
         
-        if hq_token_only:
-            return masks_hq
+        if wsi_token_only:
+            return masks_wsi
         else:
-            return masks_sam, masks_hq, masks_hq_token, hq_image_embeddings
+            return masks_sam, masks_wsi, masks_wsi_token, wsi_image_embeddings
 
     def predict_masks(
         self,
@@ -361,7 +364,7 @@ class MaskDecoderHQ1(MaskDecoder):
         image_pe: torch.Tensor,
         sparse_prompt_embeddings: torch.Tensor,
         dense_prompt_embeddings: torch.Tensor,
-        hq_feature: torch.Tensor,
+        wsi_feature: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Predicts masks. See 'forward' for more details."""
 
@@ -384,7 +387,7 @@ class MaskDecoderHQ1(MaskDecoder):
         src = src.transpose(1, 2).view(b, c, h, w)
 
         upscaled_embedding_sam = self.output_upscaling(src)
-        upscaled_embedding_ours = self.embedding_maskfeature(upscaled_embedding_sam) + hq_feature
+        upscaled_embedding_ours = self.embedding_maskfeature(upscaled_embedding_sam) + wsi_feature
         
         hyper_in_list: List[torch.Tensor] = []
         for i in range(self.num_mask_tokens):
@@ -396,12 +399,12 @@ class MaskDecoderHQ1(MaskDecoder):
         hyper_in = torch.stack(hyper_in_list, dim=1)
         b, c, h, w = upscaled_embedding_sam.shape
 
-        mask_hq_token = hyper_in[:,4:]
-        hq_image_embedding = upscaled_embedding_ours.view(b, c, h * w)
+        mask_wsi_token = hyper_in[:,4:]
+        wsi_image_embedding = upscaled_embedding_ours.view(b, c, h * w)
         masks_sam = (hyper_in[:,:4] @ upscaled_embedding_sam.view(b, c, h * w)).view(b, -1, h, w)
         masks_ours = (hyper_in[:,4:] @ upscaled_embedding_ours.view(b, c, h * w)).view(b, -1, h, w)
         masks = torch.cat([masks_sam,masks_ours],dim=1)
         
         iou_pred = self.iou_prediction_head(iou_token_out)
 
-        return masks, iou_pred, mask_hq_token, hq_image_embedding
+        return masks, iou_pred, mask_wsi_token, wsi_image_embedding

@@ -8,7 +8,6 @@
 from .sam import Sam
 from .image_encoder import ImageEncoderViT
 from .mask_decoder import MaskDecoder
-# from .mask_decoder_hq import MaskDecoderHQ
 from .prompt_encoder import PromptEncoder
 from .transformer import TwoWayTransformer
 from .tiny_vit_sam import TinyViT

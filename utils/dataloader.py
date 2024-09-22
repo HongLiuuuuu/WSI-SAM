@@ -1,4 +1,4 @@
-# Copyright by HQ-SAM team
+# Copyright by WSI-SAM team
 # All rights reserved.
 
 ## data loader
