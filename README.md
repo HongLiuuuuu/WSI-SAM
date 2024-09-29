@@ -2,6 +2,9 @@
 
 > [WSI-SAM](https://arxiv.org/pdf/2403.09257) has been accepted at MICCAI 2024 COMPAYL Workshop!
 
+## Motivation
+![fig1](demo/fig1.png 'motivation')
+
 ## Introduction
 The Segment Anything Model (SAM) marks a significant advancement in segmentation models, offering robust zero-shot abilities and dynamic prompting. 
 However, existing medical SAMs are not suitable for the multi-scale nature of whole-slide images (WSIs), restricting their
@@ -16,4 +19,6 @@ of the same object across multiple resolutions. Experiments show that
 our WSI-SAM outperforms state-of-the-art SAM and its variants. In particular, our model outperforms SAM by 4.1 and 2.5 percent points on a
 ductal carcinoma in situ (DCIS) segmentation tasks and breast cancer
 metastasis segmentation task (CAMELYON16 dataset).
+![fig2](demo/fig2.png 'pipeline')
+
 
