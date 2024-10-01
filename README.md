@@ -37,3 +37,31 @@ metastasis segmentation task (CAMELYON16 dataset).
 </p>
 
 ## Installation via pip
+The code requires python>=3.8, as well as pytorch>=1.7 and torchvision>=0.8. Please follow the instructions [here](https://pytorch.org/get-started/locally/) to install both PyTorch and TorchVision dependencies. Installing both PyTorch and TorchVision with CUDA support is strongly recommended.
+
+Clone the repository locally and install with
+```
+git clone https://github.com/HongLiuuuuu/WSI-SAM.git
+cd WSI-SAM; pip install -e .
+```
+## Model Checkpoints
+Now we only support `vit_tiny` based models, please download the following model checkpoints and put them into the pretrained_checkpoint folder:
+```
+mkdir pretrained_checkpoint
+```
+## Getting Started
+Now we provide a inference example with `examples/high.png` and `examples/low.png` as the inputs.
+```
+python inference.py
+```
+## Citation
+If you find WSI-SAM useful in your research or refer to the provided baseline results, please star ⭐ this repository and consider citing 📝:
+```
+@inproceedings{wsisam,
+      title={WSI-SAM: Multi-resolution Segment Anything Model (SAM) for histopathology whole-slide images}, 
+      author={Hong Liu and Haosen Yang and Paul J. van Diest and Josien P. W. Pluim and Mitko Veta},
+      year={2024},
+      eprint={2403.09257},
+      url={https://arxiv.org/abs/2403.09257}, 
+}
+```
