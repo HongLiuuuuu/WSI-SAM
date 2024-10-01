@@ -45,7 +45,7 @@ git clone https://github.com/HongLiuuuuu/WSI-SAM.git
 cd WSI-SAM; pip install -e .
 ```
 ## Model Checkpoints
-Now we only support `vit_tiny` based models, please download the following model checkpoints and put them into the pretrained_checkpoint folder:
+Now we only support `vit_tiny` based models, please download the model checkpoints [here](https://drive.google.com/drive/u/0/folders/1wSX79zI0suasgREeeLxC4h_aBjlxyA3E) and put them into the pretrained_checkpoint folder:
 ```
 mkdir pretrained_checkpoint
 ```
