@@ -1,6 +1,6 @@
 # WSI-SAM: Multi-resolution Segment Anything Model (SAM) for histopathology whole-slide images
 
-> [WSI-SAM](https://arxiv.org/pdf/2403.09257) has been accepted at MICCAI 2024 COMPAYL Workshop!
+> [WSI-SAM](https://arxiv.org/pdf/2403.09257) has been accepted at MICCAI 2024 COMPAYL Workshop! :tada::tada::tada:
 
 ## Motivation
 <p align="center">
@@ -36,31 +36,18 @@ metastasis segmentation task (CAMELYON16 dataset).
   <img src="demo/fig4.png" alt="fig4">
 </p>
 
-## Installation via pip
-### Standard Installation
+## Installation
 The code requires python>=3.8, as well as pytorch>=1.7 and torchvision>=0.8. Please follow the instructions [here](https://pytorch.org/get-started/locally/) to install both PyTorch and TorchVision dependencies. Installing both PyTorch and TorchVision with CUDA support is strongly recommended.
 
-Clone the repository locally and install with
-```
-git clone https://github.com/HongLiuuuuu/WSI-SAM.git
-cd WSI-SAM; pip install -e .
-```
-And install the following dependencies 
-```
-pip install opencv-python pycocotools matplotlib onnxruntime onnx timm
-```
 ### Example conda environment setup
 ```
 conda create --name wsi_sam python=3.8 -y
 conda activate wsi_sam
-conda install pytorch==1.10.0 torchvision==0.11.0 cudatoolkit=11.1 -c pytorch -c nvidia
-pip install opencv-python pycocotools matplotlib onnxruntime onnx timm
 
 # under your working directory
-git clone https://github.com/HongLiuuuuu/prepare_wsi_sam.git
+git clone https://github.com/HongLiuuuuu/WSI-SAM.git
 cd WSI-SAM
 pip install -e .
-export PYTHONPATH=$(pwd)
 ```
 ## Model Checkpoints
 Now we only support `vit_tiny` based models, please download the model checkpoints [here](https://drive.google.com/drive/u/0/folders/1wSX79zI0suasgREeeLxC4h_aBjlxyA3E) and put them into the pretrained_checkpoint folder:
