@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # WSI-SAM: Multi-resolution Segment Anything Model (SAM) for histopathology whole-slide images
 
 > [WSI-SAM](https://arxiv.org/pdf/2403.09257) has been accepted at MICCAI 2024 COMPAYL Workshop! :tada::tada::tada:
@@ -71,6 +70,3 @@ If you find WSI-SAM useful in your research or refer to the provided baseline re
       url={https://arxiv.org/abs/2403.09257}, 
 }
 ```
-=======
-
->>>>>>> c7b0e12ba0d21d643236562199d66c91af4ce208
