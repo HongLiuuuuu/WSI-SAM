@@ -21,8 +21,8 @@ def parse_args():
     parser.add_argument("--visual", type=str, default=True, help="visualize the output")
     parser.add_argument("--model_type", type=str, default="vit_tiny", help="Model type for SAM")
     parser.add_argument("--checkpoint_SAM", type=str, default='pretrained_checkpoint/mobile_sam.pt', help="Path to the trained model checkpoint")
-    parser.add_argument("--checkpoint_net", type=str, default='pretrained_checkpoint/net.pth', help="Path to net")
-    parser.add_argument("--checkpoint_net1", type=str, default='pretrained_checkpoint/net1.pth', help="Path to net1")
+    parser.add_argument("--checkpoint_net_high", type=str, default='pretrained_checkpoint/net_high.pth', help="Path to net")
+    parser.add_argument("--checkpoint_net_low", type=str, default='pretrained_checkpoint/net_low.pth', help="Path to net1")
     args = parser.parse_args()
     return args
 
@@ -91,13 +91,13 @@ def run_inference(high_res_image: torch.Tensor, low_res_image: torch.Tensor, box
     net_low = MaskDecoderLow(args.model_type).to(args.device).eval()
     
     # Load checkpoints
-    net_ckpt = args.checkpoint_net
-    checkpoint = torch.load(net_ckpt, map_location='cpu')['model']
-    net_high.load_state_dict(checkpoint, strict=False)
+    net_ckpt_high = args.checkpoint_net_high
+    checkpoint_high = torch.load(net_ckpt_high, map_location='cpu')['model']
+    net_high.load_state_dict(checkpoint_high, strict=False)
     
-    net1_ckpt = args.checkpoint_net1
-    checkpoint1 = torch.load(net1_ckpt, map_location='cpu')['model']
-    net_low.load_state_dict(checkpoint1, strict=False)
+    net_ckpt_low = args.checkpoint_net_low
+    checkpoint_low = torch.load(net_ckpt_low, map_location='cpu')['model']
+    net_low.load_state_dict(checkpoint_low, strict=False)
     
     # Convert bounding box to tensor
     box_tensor = torch.tensor(box, device=args.device).unsqueeze(0).to(args.device)
